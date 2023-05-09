@@ -21,12 +21,11 @@ class EmployeeController extends Controller
         $employees = Employee::select(
             'employees.id', 
             'employees.name', 
-            'email',
-            'phone', 
-            'department_id',
+            'employees.email',
+            'employees.phone', 
             'departments.name as department')
         ->join('departments', 'departments.id', '=', 'employees.department_id')
-        ->paginate(10);
+        ->get();
         $departments = Department::all();
         return Inertia::render(
             'Employees/Index', 
@@ -122,11 +121,29 @@ class EmployeeController extends Controller
     }
 
     public function EmployeeByDepartment(){
+        /*
         $data = Employee::select(DB::raw('count(employees.id) as count, departments.name'))
-        -join('departments', 'departments.id', '=', 'employees.department_id')
-        -goupBy('departments.name')-get();
-        return Inertia::render('Employees/Graphic',['data'=> $data]);
+        ->join('departments', 'departments.id', '=', 'employees.department_id')
+        ->goupBy('departments.name')->get();
+        return Inertia::render('Employees/Graphic',['data'=> $data]);*/
 
+        $data = DB::table('employees')
+            ->select(DB::raw('COUNT(employees.id) AS count, departments.name'))
+            ->join('departments', 'departments.id', '=', 'employees.department_id')
+            ->groupBy('departments.name')
+            ->get();
+        return Inertia::render(
+            'Employees/Graphic',
+            ['data'=>$data]
+        );
+/*
+        $result = DB::table('employees')
+            ->select(DB::raw('COUNT(employees.id) AS count, departments.name'))
+            ->join('departments', 'departments.id', '=', 'employees.department_id')
+            ->groupBy('departments.name')
+            ->get();
+
+*/
     }
 
     public function reports(){

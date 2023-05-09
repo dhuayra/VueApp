@@ -31,11 +31,11 @@ const deleteDepartment = (id, name) =>{
         <div class="py-12">
                 <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
                     <div class="p-6 text-gray-900">
-                        <Link :href="route('departments.create')" :class="'px-4 btn btn-info'" >Add</Link>
+                        <Link :href="route('departments.create')" :class="'bg-black'" >Add</Link>
                             <table class="border">
                                 <thead>
                                     <tr>
-                                        <th>#</th>
+                                        <th class="border border-slate-600 ...">#</th>
                                         <th>name</th>
                                         <th colspan="2">Accion</th>
                                     </tr>

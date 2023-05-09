@@ -43,6 +43,16 @@ const showingNavigationDropdown = ref(false);
                                     Employees
                                 </NavLink>
                             </div>
+                            <div class="hidden space-x-8 sm:-my-px sm:ml-10 sm:flex">
+                                <NavLink :href="route('graphic')" :active="route().current('employees.graphic')">
+                                    Graphics
+                                </NavLink>
+                            </div>
+                            <div class="hidden space-x-8 sm:-my-px sm:ml-10 sm:flex">
+                                <NavLink :href="route('reports')" :active="route().current('employees.index')">
+                                    Employees
+                                </NavLink>
+                            </div>
                         </div>
 
                         <div class="hidden sm:flex sm:items-center sm:ml-6">
