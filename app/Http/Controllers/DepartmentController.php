@@ -14,6 +14,7 @@ class DepartmentController extends Controller
      *
      * @return \Illuminate\Http\Response
      */
+    public $var;
     public function index()
     {
         //
@@ -22,6 +23,9 @@ class DepartmentController extends Controller
             'Departments/Index', 
             ['departments' => $departments]
         );
+        $var ="hey...x";
+        return $var;
+        
     }
 
     /**
@@ -102,5 +106,13 @@ class DepartmentController extends Controller
         $department->delete();
         return redirect('departments');
 
+    }
+
+    /**
+     * nueva función
+     */
+    public function importar(){
+        $var="hey";
+        return $var;
     }
 }

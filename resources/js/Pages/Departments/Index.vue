@@ -1,7 +1,8 @@
 <script setup>
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { Head, Link, useForm } from '@inertiajs/vue3';
-import PrimaryButton from '@/Components/DangerButton.vue';
+import DangerButton from '@/Components/DangerButton.vue';
+import PrimaryButton from '@/Components/PrimaryButton.vue';
 import Swal from 'sweetalert2';
 
 const props = defineProps({
@@ -13,10 +14,14 @@ const form = useForm({
 const deleteDepartment = (id, name) =>{
     if (confirm("Eliminar?") == true) {
         form.delete(route('departments.destroy', id));
-        alert('eliminiado');
+        //alert('eliminiado');
     } else {
-        alert('cancelado');
+        //alert('cancelado');
     }
+}
+const importarTxT = () =>{
+    // form.post(route('departments,importar'));
+    alert('ff');
 }
 </script>
 
@@ -55,6 +60,9 @@ const deleteDepartment = (id, name) =>{
                             </table>
                     </div>
                 </div>
+                <PrimaryButton @click="importarTxT">Imp Txt</PrimaryButton>
+                <!-- <Link :href="route('departments.importar')">Imp</Link> -->
+                <label >Aqui: {{ $var }}</label>
         </div>
 
     </AuthenticatedLayout>
