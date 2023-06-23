@@ -17,3 +17,5 @@ use Illuminate\Support\Facades\Route;
 Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
     return $request->user();
 });
+Route::get('categoria', 'App\Http\controllers\EmployeeController@getEmployee');
+Route::get('categoria/{id}', 'App\Http\controllers\EmployeeController@getEmployeeId');

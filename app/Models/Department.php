@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class Department extends Model
 {
+    //public $timestamp = false;
     use HasFactory;
     protected $fillable = ['name'];
 }

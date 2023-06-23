@@ -166,5 +166,16 @@ class EmployeeController extends Controller
         );
 
     }
+    public function getEmployee(){
+        return response()->json(Employee::all(), 200);
+    }
+    public function getEmployeeId($id){
+        $categoria = Employee::find($id);
+        if(is_null($categoria)){
+            return response()->json(['Mensaje'=>'Nada '], 404);
+
+        }
+        return response()->json($categoria::find($id), 200);
+    }
 
 }

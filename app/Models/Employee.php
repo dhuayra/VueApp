@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class Employee extends Model
 {
+    //public $timestamp = false;
     use HasFactory;
     protected $fillable = ['name', 'email', 'phone','department_id'];
 }
