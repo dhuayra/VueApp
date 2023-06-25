@@ -37,22 +37,25 @@ const importarTxT = () =>{
                 <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
                     <div class="p-6 text-gray-900">
                         <Link :href="route('departments.create')" :class="'bg-black'" >Add</Link>
-                            <table class="border">
+                            <table class="table table-sm">
                                 <thead>
                                     <tr>
-                                        <th class="border border-slate-600 ...">#</th>
+                                        <th>#</th>
                                         <th>name</th>
                                         <th colspan="2">Accion</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     <tr v-for="dep, i in departments" :key="dep.id">
-                                        <td class="border border-gray-400 px-4 py-4">{{ (i+1) }}</td>
-                                        <td class="border border-gray-400 px-4 py-4">{{ dep.name }}</td>
-                                        <td class="border border-gray-400 px-4 py-4">
-                                            <Link :href="route('departments.edit', dep.id)">Edit</Link>
+                                        <td>{{ (i+1) }}</td>
+                                        <td>{{ dep.name }}</td>
+                                        <td>
+                                            <div class="btn btn-primary btn-sm">
+                                                <Link :href="route('departments.edit', dep.id)">Edit</Link>
+                                            </div>
+                                            
                                         </td>
-                                        <td class="border border-gray-400 px-4 py-4">
+                                        <td>
                                             <PrimaryButton @click="$event => deleteDepartment(dep.id, dep.name)">Del</PrimaryButton>
                                         </td>
                                     </tr>
