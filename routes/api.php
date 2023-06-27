@@ -28,7 +28,3 @@ Route::get('/padron/download', 'App\Http\controllers\PadronController@download')
 Route::get('/padron/extractor', 'App\Http\controllers\PadronController@extractor');
 Route::get('/padron/loaddata', 'App\Http\controllers\PadronController@loaddata');
 
-/*scraper*/
-Route::get('scraper', 'App\Http\controllers\ScraperController@scraper');
-Route::get('exchange', 'App\Http\controllers\ScraperController@exchange');
-Route::get('exchange2', 'App\Http\controllers\ScraperController@index');
