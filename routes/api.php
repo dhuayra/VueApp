@@ -28,3 +28,4 @@ Route::get('/padron/download', 'App\Http\controllers\PadronController@download')
 Route::get('/padron/extractor', 'App\Http\controllers\PadronController@extractor');
 Route::get('/padron/loaddata', 'App\Http\controllers\PadronController@loaddata');
 
+
