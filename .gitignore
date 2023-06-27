@@ -4,6 +4,7 @@
 /public/build
 /public/hot
 /public/storage
+/public/padron_rar/
 /storage/*.key
 /vendor
 .env

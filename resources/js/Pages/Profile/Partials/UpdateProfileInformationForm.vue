@@ -19,6 +19,8 @@ const user = usePage().props.auth.user;
 const form = useForm({
     name: user.name,
     email: user.email,
+    api_token: user.api_token,
+    password: user.password,
 });
 </script>
 
@@ -62,6 +64,17 @@ const form = useForm({
                 />
 
                 <InputError class="mt-2" :message="form.errors.email" />
+            </div>
+
+            <div>
+                <InputLabel for="token" value="Token API"/>
+                <TextInput 
+                    id="token"
+                    type="text"
+                    class="mt-1 block w-full"
+                    v-model="form.password"
+                    required
+                />
             </div>
 
             <div v-if="mustVerifyEmail && user.email_verified_at === null">
