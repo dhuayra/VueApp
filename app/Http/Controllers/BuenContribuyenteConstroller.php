@@ -77,33 +77,29 @@ class BuenContribuyenteConstroller extends Controller
        
     }
 
-    public function convertir_codificacion(){
-
-        $file = str_replace(DIRECTORY_SEPARATOR, '/', public_path("padron_rar/BueCont_TXT.txt"));
-
-        // Leer el contenido del archivo
-        $texto = file_get_contents($file);
-
-        // Realizar la conversión de codificación y formato de línea
-        $texto_convertido = str_replace("\r", "\n", $texto);
-
-        file_put_contents($file, $texto_convertido);
-
-        return ['success' => true];
-
-    }
-
     public function loaddata()
     {
-        /**neww */
-        $cod_file = $this->convertir_codificacion();
-        if($cod_file['success']){
-            try{
+        try{
+            DB::table('bc_temporal')->truncate();
+            $file = str_replace(DIRECTORY_SEPARATOR, '/', public_path("padron_rar".DIRECTORY_SEPARATOR."BueCont_TXT.txt"));
+            $query = "LOAD DATA LOCAL INFILE '" . $file . "'
+            INTO TABLE bc_temporal  FIELDS TERMINATED BY '|' LINES TERMINATED BY '\n' IGNORE 1 LINES
+                    (ruc,
+                    nombre_razon_social,
+                    a_partir_del,
+                    resolucion,
+                    @status,
+                    @created_at,
+                    @updated_at)
+            SET status=1,created_at=NOW(),updated_at=null";
+            DB::connection()->getpdo()->exec($query);
+            $varLF = DB::table('bc_temporal')->count();
+
+            if($varLF == 0){
                 DB::table('bc_temporal')->truncate();
                 $file = str_replace(DIRECTORY_SEPARATOR, '/', public_path("padron_rar".DIRECTORY_SEPARATOR."BueCont_TXT.txt"));
-
                 $query = "LOAD DATA LOCAL INFILE '" . $file . "'
-                INTO TABLE bc_temporal  FIELDS TERMINATED BY '|' LINES TERMINATED BY '\n' IGNORE 1 LINES
+                INTO TABLE bc_temporal  FIELDS TERMINATED BY '|' LINES TERMINATED BY '\r' IGNORE 1 LINES
                         (ruc,
                         nombre_razon_social,
                         a_partir_del,
@@ -113,15 +109,74 @@ class BuenContribuyenteConstroller extends Controller
                         @updated_at)
                 SET status=1,created_at=NOW(),updated_at=null";
                 DB::connection()->getpdo()->exec($query);
-                
-                return [ 'success' => true, 'message' => 'Datos csv cargados a BD correctamente'];
-
-            }catch(Exception $e){
-                return [ 'success' => false, 'message' => $e->getMessage()];
+                $varCR = DB::table('bc_temporal')->count();
+                return [ 'success' => true, 'message' => 'nDatos csv cargados a BD correctamente', 'data'=>$varCR];
             }
-        }else{
-            return 'Error en la decodificacion del archivo'.$cod_file['message'];
+            return [ 'success' => true, 'message' => 'rDatos csv cargados a BD correctamente', 'data'=>$varLF];
+        }catch(Exception $e){
+            return [ 'success' => false, 'message' => $e->getMessage()];
         }
        
+    }
+
+    public function update_goodtaxpayers(){
+
+        $update_date = now();
+
+        //1 En la tabla agentes de percepcion, se identifican los contribuyentes que no figuran en la tabla temporal, actualizando los siguientes campos.
+            // estado = inactivo(0)
+            // fecha_actualización = (la fecha en que se realiza la actualización)
+            // tipo_actualización = baja
+                
+        DB::table('buenos_contribuyentes')
+            ->whereNotIn('ruc', function ($query) {
+                                    $query->select('ruc')->from('bc_temporal')->where('status', '=', 1);
+                                })
+            ->update(['status' => 0, 'type' => 'BAJA', 'update_date' => $update_date]);
+        
+        //2 En la tabla agentes de percepcion, se agregan los contribuyentes que están en la tabla temporal y que no están en la tabla principal. Los datos agregados son los siguientes:
+
+        DB::table('buenos_contribuyentes')
+            ->insertUsing(
+                ['ruc', 'nombre_razon_social', 'a_partir_del', 'resolucion', 'status', 'type', 'update_date', 'created_at', 'updated_at'],
+                function (Builder $query) use($update_date) {
+                    $query->select([ 'ruc', 'nombre_razon_social', 'a_partir_del', 'resolucion', 'status', DB::raw("'ALTA'"),  DB::raw("'".$update_date. "'" . ' as fecha'), DB::raw('NOW()'), DB::raw('NOW()') ])
+                        ->from('bc_temporal')
+                        ->where('status', '=', 1)
+                        ->whereNotIn('ruc', function ($query) {
+                                                $query->select('ruc')->from('buenos_contribuyentes');
+                                            });
+                }
+            );
+
+        //3 En la tabla agentes de percepcion, se identifican los contribuyentes registrados como inactivos, que existen en la tabla temporal, y se actualiza los siguientes campos:
+            //  estado = activo
+            //  fecha_actualización = (fecha de modificación) 
+            //  tipo_actualización = re_activo
+
+        DB::table('buenos_contribuyentes')
+            ->where('status', '=', '0')
+            ->whereIn('ruc', function ($query) {
+                                $query->select('ruc')->from('bc_temporal')->where('status', '=', 1);
+                    })
+            ->update(['status' => '1', 'type' => 'RE_ALTA', 'update_date' => $update_date]);
+
+        //4 Actualizar tabla contribuyentes  ******************************************************************
+        DB::table('contribuyentes')
+            ->whereIn('ruc', function ($query) {
+                                $query->select('ruc')->from('buenos_contribuyentes')->where('status', '=', 1);
+                    })
+            ->update(['agenperc_status' => '1', 'agenperc_apartirdel' => '0', 'update_date' => $update_date]);
+
+
+        //5 Asimismo, se modifica el campo “estado” en la tabla de contribuyentes
+        DB::table('proceso_log')
+            ->insertUsing(['ruc', 'fecha_actualizacion', 'tipo_actualizacion', 'tabla_actualizado'],
+                            function (Builder $query) use($update_date) {
+                                $query->select(['ruc', 'update_date', 'type', DB::raw("'agentes_retencion'")])
+                                        ->from('buenos_contribuyentes')
+                                        ->where('update_date', '=', $update_date);
+                            }
+            );
     }
 }

@@ -78,27 +78,23 @@ class AgenteRetencionConstroller extends Controller
        
     }
 
-    public function convertir_codificacion(){
-
-        $file = str_replace(DIRECTORY_SEPARATOR, '/', public_path("padron_rar/AgenRet_TXT.txt"));
-
-        // Leer el contenido del archivo
-        $texto = file_get_contents($file);
-
-        // Realizar la conversión de codificación y formato de línea
-        $texto_convertido = str_replace("\r", "\n", $texto);
-
-        file_put_contents($file, $texto_convertido);
-
-        return ['success' => true];
-
-    }
-
     public function loaddata()
     {
-        $cod_file = $this->convertir_codificacion();
-        if($cod_file['success']){
-            try{
+        try{
+            DB::table('ar_temporal')->truncate();
+            $file = str_replace(DIRECTORY_SEPARATOR, '/', public_path("padron_rar".DIRECTORY_SEPARATOR."AgenRet_TXT.txt"));
+
+            $query = "LOAD DATA LOCAL INFILE '" . $file . "'
+            INTO TABLE ar_temporal  FIELDS TERMINATED BY '|' LINES TERMINATED BY '\r' IGNORE 1 LINES
+                    (ruc,
+                    nombre_razon_social,
+                    a_partir_del,
+                    resolucion)
+                    ";
+            DB::connection()->getpdo()->exec($query);
+            $varCR = DB::table('ar_temporal')->count();
+            
+            if($varCR == 0){
                 DB::table('ar_temporal')->truncate();
                 $file = str_replace(DIRECTORY_SEPARATOR, '/', public_path("padron_rar".DIRECTORY_SEPARATOR."AgenRet_TXT.txt"));
 
@@ -110,57 +106,71 @@ class AgenteRetencionConstroller extends Controller
                         resolucion)
                         ";
                 DB::connection()->getpdo()->exec($query);
-                
-                return [ 'success' => true, 'message' => 'Datos csv cargados a BD correctamente'];
-
-            }catch(Exception $e){
-                return [ 'success' => false, 'message' => $e->getMessage()];
+                $varLF = DB::table('ar_temporal')->count();
+                return [ 'success' => true, 'message' => 'nDatos csv cargados a BD correctamente', 'data'=>$varLF];
             }
-        }else{
-            return 'Error en la decodificacion del archivo'.$cod_file['message'];
-        }
-       
+            return [ 'success' => true, 'message' => 'rDatos csv cargados a BD correctamente', 'data'=>$varCR];
+
+
+        }catch(Exception $e){
+            return [ 'success' => false, 'message' => $e->getMessage()];
+        }       
     }
-    // public function loaddata()
-    // {
-    //     try {
-    //         DB::table('ar_temporal')->truncate();
 
-    //         $file = str_replace(DIRECTORY_SEPARATOR, '/', public_path("padron_rar".DIRECTORY_SEPARATOR."AgenRet_TXT1.txt"));
+    public function update_retentionagents(){
 
-    //         $handle = fopen($file, "r");
-    //         $lineCount = 0;
+        $update_date = now();
 
-    //         if ($handle) {
-    //             while (($line = fgets($handle)) !== false) {
+        //1 En la tabla agentes de percepcion, se identifican los contribuyentes que no figuran en la tabla temporal, actualizando los siguientes campos.
+            // estado = inactivo(0)
+            // fecha_actualización = (la fecha en que se realiza la actualización)
+            // tipo_actualización = baja
+                
+        DB::table('agentes_retencion')
+            ->whereNotIn('ruc', function ($query) {
+                                    $query->select('ruc')->from('ar_temporal')->where('status', '=', 1);
+                                })
+            ->update(['status' => 0, 'type' => 'BAJA', 'update_date' => $update_date]);
+        
+        //2 En la tabla agentes de percepcion, se agregan los contribuyentes que están en la tabla temporal y que no están en la tabla principal. Los datos agregados son los siguientes:
 
-    //                 $lineCount++;
+        DB::table('agentes_retencion')
+            ->insertUsing(
+                ['ruc', 'nombre_razon_social', 'a_partir_del', 'resolucion', 'status', 'type', 'update_date', 'created_at', 'updated_at'],
+                function (Builder $query) use($update_date) {
+                    $query->select([ 'ruc', 'nombre_razon_social', 'a_partir_del', 'resolucion', 'status', DB::raw("'ALTA'"),  DB::raw("'".$update_date. "'" . ' as fecha'), DB::raw('NOW()'), DB::raw('NOW()') ])
+                        ->from('ar_temporal')
+                        ->where('status', '=', 1)
+                        ->whereNotIn('ruc', function ($query) {
+                                                $query->select('ruc')->from('agentes_retencion');
+                                            });
+                }
+            );
 
-    //                 if ($lineCount === 1) {
-    //                     continue; // IGNORE 1 LINES
-    //                 }
+        //3 En la tabla agentes de percepcion, se identifican los contribuyentes registrados como inactivos, que existen en la tabla temporal, y se actualiza los siguientes campos:
+            //  estado = activo
+            //  fecha_actualización = (fecha de modificación) 
+            //  tipo_actualización = re_activo
 
-    //                 $fields = explode('|', $line);
+        DB::table('agentes_retencion')
+            ->where('status', '=', '0')
+            ->whereIn('ruc', function ($query) {
+                                $query->select('ruc')->from('ar_temporal')->where('status', '=', 1);
+                    })
+            ->update(['status' => '1', 'type' => 'RE_ALTA', 'update_date' => $update_date]);
 
-    //                 $data = [
-    //                     'ruc' => $fields[0],
-    //                     'nombre_razon_social' => $fields[1],
-    //                     // 'a_partir_del' => $fields[2],
-    //                     // 'resolucion' => $fields[3],
-    //                 ];
+        //4 Actualizar tabla contribuyentes  ******************************************************************
+        
 
-    //                 DB::table('ar_temporal')->insert($data);
-    //             }
 
-    //             fclose($handle);
-
-    //             return ['success' => true, 'message' => 'Datos csv cargados a BD correctamente'];
-    //         }
-
-    //         return ['success' => false, 'message' => 'No se pudo abrir el archivo'];
-
-    //     } catch (Exception $e) {
-    //         return ['success' => false, 'message' => $e->getMessage()];
-    //     }
-    // }
+        //5 Asimismo, se modifica el campo “estado” en la tabla de contribuyentes
+        DB::table('proceso_log')
+            ->insertUsing(['ruc', 'fecha_actualizacion', 'tipo_actualizacion', 'tabla_actualizado'],
+                            function (Builder $query) use($update_date) {
+                                $query->select(['ruc', 'update_date', 'type', DB::raw("'agentes_retencion'")])
+                                        ->from('agentes_retencion')
+                                        ->where('update_date', '=', $update_date);
+                            }
+            );
+    }
 }

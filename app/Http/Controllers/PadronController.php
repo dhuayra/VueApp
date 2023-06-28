@@ -93,7 +93,7 @@ class PadronController extends Controller
             $file = str_replace(DIRECTORY_SEPARATOR, '/', public_path("padron_rar".DIRECTORY_SEPARATOR."padron_reducido_ruc.txt"));
             
             $query = "LOAD DATA LOCAL INFILE '" . $file . "'
-            INTO TABLE empresa_temporal  FIELDS TERMINATED BY '|' LINES TERMINATED BY '\n' IGNORE 1 LINES
+            INTO TABLE empresa_temporal  FIELDS TERMINATED BY '|' LINES TERMINATED BY '\r\n' IGNORE 1 LINES
                     (ruc,
                     nombre_razon_social,
                     estado_contribuyente,
