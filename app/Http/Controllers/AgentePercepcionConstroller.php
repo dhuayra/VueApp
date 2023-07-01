@@ -176,8 +176,7 @@ class AgentePercepcionConstroller extends Controller
         // DB::table('contribuyentes AS c')
         //     ->join('agentes_percepcion AS ap', 'c.ruc', '=', 'ap.ruc')
         //     ->update([
-        //         'c.agenperc_status' => DB::raw('ap.status'),
-        //         'c.agenperc_apartirdel' => DB::raw('ap.a_partir_del')
+        //         'c.agenperc_estado' => DB::raw('ap.estado')
         //     ]);
 
 

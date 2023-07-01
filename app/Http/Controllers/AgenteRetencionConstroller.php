@@ -126,56 +126,69 @@ class AgenteRetencionConstroller extends Controller
 
         $update_date = now();
 
-        //1 En la tabla agentes de percepcion, se identifican los contribuyentes que no figuran en la tabla temporal, actualizando los siguientes campos.
-            // estado = inactivo(0)
-            // fecha_actualización = (la fecha en que se realiza la actualización)
-            // tipo_actualización = baja
-                
-        DB::table('agentes_retencion')
-            ->whereNotIn('ruc', function ($query) {
+        try{
+
+            //1 En la tabla agentes de percepcion, se identifican los contribuyentes que no figuran en la tabla temporal, actualizando los siguientes campos.
+                // estado = inactivo(0)
+                // fecha_actualización = (la fecha en que se realiza la actualización)
+                // tipo_actualización = baja
+                    
+            DB::table('agentes_retencion')
+                ->whereNotIn('ruc', function ($query) {
+                                        $query->select('ruc')->from('agentes_retencion_temporal')->where('estado', '=', 1);
+                                    })
+                ->update(['estado' => 0, 'tipo_carga' => 'BAJA', 'fecha_actualizado' => $update_date]);
+            
+            //2 En la tabla agentes de percepcion, se agregan los contribuyentes que están en la tabla temporal y que no están en la tabla principal. Los datos agregados son los siguientes:
+
+            DB::table('agentes_retencion')
+                ->insertUsing(
+                    ['ruc', 'nombre_razon_social', 'a_partir_del', 'resolucion', 'estado', 'tipo_carga', 'fecha_actualizado', 'created_at', 'updated_at'],
+                    function (Builder $query) use($update_date) {
+                        $query->select([ 'ruc', 'nombre_razon_social', 'a_partir_del', 'resolucion', 'estado', DB::raw("'ALTA'"),  DB::raw("'".$update_date. "'" . ' as fecha'), DB::raw('NOW()'), DB::raw('now()') ])
+                            ->from('agentes_retencion_temporal')
+                            ->where('estado', '=', 1)
+                            ->whereNotIn('ruc', function ($query) {
+                                                    $query->select('ruc')->from('agentes_retencion');
+                                                });
+                    }
+                );
+
+            //3 En la tabla agentes de percepcion, se identifican los contribuyentes registrados como inactivos, que existen en la tabla temporal, y se actualiza los siguientes campos:
+                //  estado = activo
+                //  fecha_actualización = (fecha de modificación) 
+                //  tipo_actualización = re_activo
+
+            DB::table('agentes_retencion')
+                ->where('estado', '=', '0')
+                ->whereIn('ruc', function ($query) {
                                     $query->select('ruc')->from('agentes_retencion_temporal')->where('estado', '=', 1);
-                                })
-            ->update(['estado' => 0, 'tipo_carga' => 'BAJA', 'fecha_actualizado' => $update_date]);
-        
-        //2 En la tabla agentes de percepcion, se agregan los contribuyentes que están en la tabla temporal y que no están en la tabla principal. Los datos agregados son los siguientes:
+                        })
+                ->update(['estado' => '1', 'tipo_carga' => 'RE_ALTA', 'fecha_actualizado' => $update_date]);
 
-        DB::table('agentes_retencion')
-            ->insertUsing(
-                ['ruc', 'nombre_razon_social', 'a_partir_del', 'resolucion', 'estado', 'tipo_carga', 'fecha_actualizado', 'created_at', 'updated_at'],
-                function (Builder $query) use($update_date) {
-                    $query->select([ 'ruc', 'nombre_razon_social', 'a_partir_del', 'resolucion', 'estado', DB::raw("'ALTA'"),  DB::raw("'".$update_date. "'" . ' as fecha'), DB::raw('NOW()'), DB::raw('now()') ])
-                        ->from('agentes_retencion_temporal')
-                        ->where('estado', '=', 1)
-                        ->whereNotIn('ruc', function ($query) {
-                                                $query->select('ruc')->from('agentes_retencion');
-                                            });
-                }
-            );
-
-        //3 En la tabla agentes de percepcion, se identifican los contribuyentes registrados como inactivos, que existen en la tabla temporal, y se actualiza los siguientes campos:
-            //  estado = activo
-            //  fecha_actualización = (fecha de modificación) 
-            //  tipo_actualización = re_activo
-
-        DB::table('agentes_retencion')
-            ->where('estado', '=', '0')
-            ->whereIn('ruc', function ($query) {
-                                $query->select('ruc')->from('agentes_retencion_temporal')->where('estado', '=', 1);
-                    })
-            ->update(['estado' => '1', 'tipo_carga' => 'RE_ALTA', 'fecha_actualizado' => $update_date]);
-
-        //4 Actualizar tabla contribuyentes  ******************************************************************
-        
+            
+            //4 Actualizar tabla contribuyentes  ******************************************************************
+            // DB::table('contribuyentes AS c')
+            //     ->join('agentes_retencion AS ar', 'c.ruc', '=', 'ar.ruc')
+            //     ->update([
+            //         'c.agenret_estado' => DB::raw('ar.estado'),
+            //     ]);
+            
 
 
-        //5 Asimismo, se modifica el campo “estado” en la tabla de contribuyentes
-        DB::table('proceso_log')
-            ->insertUsing(['ruc', 'fecha_actualizacion', 'tipo_actualizacion', 'tabla_actualizado', 'created_at', 'updated_at'],
-                            function (Builder $query) use($update_date) {
-                                $query->select(['ruc', 'fecha_actualizado', 'tipo_carga', DB::raw("'agentes_retencion'"), DB::RAW('now()'), DB::RAW('now()')])
-                                        ->from('agentes_retencion')
-                                        ->where('fecha_actualizado', '=', $update_date);
-                            }
-            );
+            //5 Asimismo, se modifica el campo “estado” en la tabla de contribuyentes
+            DB::table('proceso_log')
+                ->insertUsing(['ruc', 'fecha_actualizacion', 'tipo_actualizacion', 'tabla_actualizado', 'created_at', 'updated_at'],
+                                function (Builder $query) use($update_date) {
+                                    $query->select(['ruc', 'fecha_actualizado', 'tipo_carga', DB::raw("'agentes_retencion'"), DB::RAW('now()'), DB::RAW('now()')])
+                                            ->from('agentes_retencion')
+                                            ->where('fecha_actualizado', '=', $update_date);
+                                }
+                );
+
+            
+        }catch(Exception $e){
+
+        }
     }
 }
