@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Database\Query\Builder;
 
 class AgenteRetencionConstroller extends Controller
 {
@@ -81,32 +82,36 @@ class AgenteRetencionConstroller extends Controller
     public function loaddata()
     {
         try{
-            DB::table('ar_temporal')->truncate();
+            DB::table('agentes_retencion_temporal')->truncate();
             $file = str_replace(DIRECTORY_SEPARATOR, '/', public_path("padron_rar".DIRECTORY_SEPARATOR."AgenRet_TXT.txt"));
 
             $query = "LOAD DATA LOCAL INFILE '" . $file . "'
-            INTO TABLE ar_temporal  FIELDS TERMINATED BY '|' LINES TERMINATED BY '\r' IGNORE 1 LINES
+            INTO TABLE agentes_retencion_temporal  FIELDS TERMINATED BY '|' LINES TERMINATED BY '\r' IGNORE 1 LINES
                     (ruc,
                     nombre_razon_social,
                     a_partir_del,
-                    resolucion)
-                    ";
+                    resolucion,
+                    @estado,
+                    @created_at, @updated_at)
+                SET estado = 1, created_at = NOW(), updated_at = null ";
             DB::connection()->getpdo()->exec($query);
-            $varCR = DB::table('ar_temporal')->count();
+            $varCR = DB::table('agentes_retencion_temporal')->count();
             
             if($varCR == 0){
-                DB::table('ar_temporal')->truncate();
+                DB::table('agentes_retencion_temporal')->truncate();
                 $file = str_replace(DIRECTORY_SEPARATOR, '/', public_path("padron_rar".DIRECTORY_SEPARATOR."AgenRet_TXT.txt"));
 
                 $query = "LOAD DATA LOCAL INFILE '" . $file . "'
-                INTO TABLE ar_temporal  FIELDS TERMINATED BY '|' LINES TERMINATED BY '\n' IGNORE 1 LINES
+                INTO TABLE agentes_retencion_temporal  FIELDS TERMINATED BY '|' LINES TERMINATED BY '\n' IGNORE 1 LINES
                         (ruc,
                         nombre_razon_social,
                         a_partir_del,
-                        resolucion)
-                        ";
+                        resolucion,
+                        @estado,
+                        @created_at, @updated_at)
+                    SET estado = 1, created_at = NOW(), updated_at = null ";
                 DB::connection()->getpdo()->exec($query);
-                $varLF = DB::table('ar_temporal')->count();
+                $varLF = DB::table('agentes_retencion_temporal')->count();
                 return [ 'success' => true, 'message' => 'nDatos csv cargados a BD correctamente', 'data'=>$varLF];
             }
             return [ 'success' => true, 'message' => 'rDatos csv cargados a BD correctamente', 'data'=>$varCR];
@@ -128,19 +133,19 @@ class AgenteRetencionConstroller extends Controller
                 
         DB::table('agentes_retencion')
             ->whereNotIn('ruc', function ($query) {
-                                    $query->select('ruc')->from('ar_temporal')->where('status', '=', 1);
+                                    $query->select('ruc')->from('agentes_retencion_temporal')->where('estado', '=', 1);
                                 })
-            ->update(['status' => 0, 'type' => 'BAJA', 'update_date' => $update_date]);
+            ->update(['estado' => 0, 'tipo_carga' => 'BAJA', 'fecha_actualizado' => $update_date]);
         
         //2 En la tabla agentes de percepcion, se agregan los contribuyentes que están en la tabla temporal y que no están en la tabla principal. Los datos agregados son los siguientes:
 
         DB::table('agentes_retencion')
             ->insertUsing(
-                ['ruc', 'nombre_razon_social', 'a_partir_del', 'resolucion', 'status', 'type', 'update_date', 'created_at', 'updated_at'],
+                ['ruc', 'nombre_razon_social', 'a_partir_del', 'resolucion', 'estado', 'tipo_carga', 'fecha_actualizado', 'created_at', 'updated_at'],
                 function (Builder $query) use($update_date) {
-                    $query->select([ 'ruc', 'nombre_razon_social', 'a_partir_del', 'resolucion', 'status', DB::raw("'ALTA'"),  DB::raw("'".$update_date. "'" . ' as fecha'), DB::raw('NOW()'), DB::raw('NOW()') ])
-                        ->from('ar_temporal')
-                        ->where('status', '=', 1)
+                    $query->select([ 'ruc', 'nombre_razon_social', 'a_partir_del', 'resolucion', 'estado', DB::raw("'ALTA'"),  DB::raw("'".$update_date. "'" . ' as fecha'), DB::raw('NOW()'), DB::raw('now()') ])
+                        ->from('agentes_retencion_temporal')
+                        ->where('estado', '=', 1)
                         ->whereNotIn('ruc', function ($query) {
                                                 $query->select('ruc')->from('agentes_retencion');
                                             });
@@ -153,11 +158,11 @@ class AgenteRetencionConstroller extends Controller
             //  tipo_actualización = re_activo
 
         DB::table('agentes_retencion')
-            ->where('status', '=', '0')
+            ->where('estado', '=', '0')
             ->whereIn('ruc', function ($query) {
-                                $query->select('ruc')->from('ar_temporal')->where('status', '=', 1);
+                                $query->select('ruc')->from('agentes_retencion_temporal')->where('estado', '=', 1);
                     })
-            ->update(['status' => '1', 'type' => 'RE_ALTA', 'update_date' => $update_date]);
+            ->update(['estado' => '1', 'tipo_carga' => 'RE_ALTA', 'fecha_actualizado' => $update_date]);
 
         //4 Actualizar tabla contribuyentes  ******************************************************************
         
@@ -165,11 +170,11 @@ class AgenteRetencionConstroller extends Controller
 
         //5 Asimismo, se modifica el campo “estado” en la tabla de contribuyentes
         DB::table('proceso_log')
-            ->insertUsing(['ruc', 'fecha_actualizacion', 'tipo_actualizacion', 'tabla_actualizado'],
+            ->insertUsing(['ruc', 'fecha_actualizacion', 'tipo_actualizacion', 'tabla_actualizado', 'created_at', 'updated_at'],
                             function (Builder $query) use($update_date) {
-                                $query->select(['ruc', 'update_date', 'type', DB::raw("'agentes_retencion'")])
+                                $query->select(['ruc', 'fecha_actualizado', 'tipo_carga', DB::raw("'agentes_retencion'"), DB::RAW('now()'), DB::RAW('now()')])
                                         ->from('agentes_retencion')
-                                        ->where('update_date', '=', $update_date);
+                                        ->where('fecha_actualizado', '=', $update_date);
                             }
             );
     }
