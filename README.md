@@ -10,16 +10,17 @@
 ## Info !!!
 
 Se requiere configurar la base de datos con:
-    -> collation = 'latin1_spanish_ci'
+- collation = 'latin1_spanish_ci'.
 
-## Install
+## Instalación
 
-Para clonar:
-    -> git clone https://github.com/dhuayra/VueApp.git 
-    -> composer install
-    -> npm install
-    -> php artisan migrate --seed
-    -> npm run dev
+Para clonar.
+- git clone https://github.com/dhuayra/VueApp.git
+- ...
+- composer install
+- npm install
+- php artisan migrate --seed
+- npm run dev
 
 
 ## License
